@@ -6,9 +6,9 @@ setwd('F:/DataScientist/revisions_data/')
 db=read.csv('weatherAUS.csv',stringsAsFactors = T) %>% 
     na.omit() %>% 
     mutate(Y=as.factor(RainTomorrow)) %>% 
-    select(MinTemp, MaxTemp,Rainfall,Evaporation,Sunshine,
-           WindSpeed9am,WindSpeed3pm,Humidity9am,Humidity3pm,
-           Pressure9am,Pressure3pm,Cloud9am,Y) %>% 
+    select(MinTemp, Sunshine,Temp9am,
+           WindSpeed3pm,Humidity9am,
+           Pressure9am,Cloud9am,Y) %>% 
     mutate(Y=case_when(Y=='No'~1,
                        Y=='Yes'~0))
 
@@ -23,9 +23,9 @@ test_X = model.matrix(Y~., data=test)[,-1]
 train_Y=train$Y
 test_Y =test$Y
 
-ridge=cv.glmnet(train_X,train_Y,alpha = 0 ,  family='gaussian', nfolds=10, type.measure='class')
-lasso=cv.glmnet(train_X,train_Y,alpha = 1,   family='gaussian', nfolds=10, type.measure='class')
-elast=cv.glmnet(train_X,train_Y,alpha = 0.5, family='gaussian', nfolds=10, type.measure='class')
+ridge=cv.glmnet(train_X,train_Y,alpha = 0 ,  family='binomial', nfolds=10, type.measure='class')
+lasso=cv.glmnet(train_X,train_Y,alpha = 1,   family='binomial', nfolds=10, type.measure='class')
+elast=cv.glmnet(train_X,train_Y,alpha = 0.5, family='binomial', nfolds=10, type.measure='class')
 
 pridge = predict(ridge, newx=test_X, type='response', s='lambda.min')
 plasso = predict(lasso, newx=test_X, type='response', s='lambda.min')
@@ -70,3 +70,4 @@ TP/(TP+FN)
 TN=confridge[1,1]
 FP=confridge[2,1]
 TN/(TN+FP)
+
