@@ -10,7 +10,10 @@ db=read.csv('weatherAUS.csv',stringsAsFactors = T) %>%
            WindSpeed3pm,Humidity9am,
            Pressure9am,Cloud9am,Y) %>% 
     mutate(Y=case_when(Y=='No'~1,
-                       Y=='Yes'~0))
+                       Y=='Yes'~0)) 
+
+
+db[,which(names(db)!='Y')]=scale(db[,which(names(db)!='Y')])
 
 index=sample(seq_len(nrow(db)), size= floor(0.8*nrow(db)))
 
