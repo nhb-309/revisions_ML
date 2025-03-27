@@ -1,8 +1,9 @@
-
 library(tidyverse)
 library(glmnet)
 library(pROC)
+
 setwd('F:/DataScientist/revisions_data/')
+
 db=read.csv('weatherAUS.csv',stringsAsFactors = T) %>% 
     na.omit() %>% 
     mutate(Y=as.factor(RainTomorrow)) %>% 

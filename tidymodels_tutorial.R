@@ -151,6 +151,7 @@ train_bootstraps
 
 train_cv=
     vfold_cv(train, v=10, repeats=5, strata=price)
+
 train_cv
 
 train_loo_cv=loo_cv(train)
@@ -182,6 +183,10 @@ glmnet_model =
 glmnet_model
 
 ### 
+# Globalement: 
+###
+
+
 
 recipe <-
     recipe(formula = price ~ . , data=train) %>% 
@@ -192,6 +197,11 @@ recipe <-
     step_nzv(all_predictors()) %>%   # remove any near zero variance features
     step_log(price) # log the target
 recipe
+
+train_cv=
+    vfold_cv(train, v=10, repeats=1, strata=price)
+train_cv
+
 
 lm_model=linear_reg(mode='regression') %>% 
     set_engine('lm')
