@@ -103,27 +103,22 @@ conf=table(PRED=pred_class,OBS=valid$Y)
 conf[2,2]
 
 accuracy = sum(diag(conf))/sum(conf) ; accuracy
-TP = conf[2,2] ; FN = conf[1,2] ; sensi = TP/(TP+FN) ; sensi
+TP = conf[2,2] ; FN = conf[1,2] ; sensi = TP/(TP+FN); spec = 1-sensi ; sensi
 FP = conf[2,1]; prec= TP / (TP + FP); prec
+
+data.frame(
+    'accu'=accuracy,
+    'sensi'=sensi,
+    'spec'=spec
+)
 
 
 # Compute Precision
-Precision <- TP / (TP + FP)
+
 
 # Si je veux ma roc, il faut setup proba = T dans ranger()
 proba = predictions$predictions[,2]    # Je chope ma proba de prédire 1 
 roc_obj=roc(valid$Y,proba)
-
-ggplot(data.frame(fpr = roc_obj$specificities, tpr = roc_obj$sensitivities), aes(x = 1 - fpr, y = tpr)) +
-    geom_line(color = "blue", size = 1) +
-    geom_abline(linetype = "dashed", color = "red") +  # Diagonal reference line
-    theme_minimal() +
-    labs(title = paste("ROC Curve (AUC =", round(auc(roc_obj), 3), ")"),
-         x = "False Positive Rate (1 - Specificity)",
-         y = "True Positive Rate (Sensitivity)")
-
-
-# If it's a classification problem:
 
 
 

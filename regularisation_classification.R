@@ -31,9 +31,9 @@ ridge=cv.glmnet(train_X,train_Y,alpha = 0 ,  family='binomial', nfolds=10, type.
 lasso=cv.glmnet(train_X,train_Y,alpha = 1,   family='binomial', nfolds=10, type.measure='class')
 elast=cv.glmnet(train_X,train_Y,alpha = 0.5, family='binomial', nfolds=10, type.measure='class')
 
-pridge = predict(ridge, newx=test_X, type='response', s='lambda.min')
-plasso = predict(lasso, newx=test_X, type='response', s='lambda.min')
-pelast = predict(elast, newx=test_X, type='response', s='lambda.min')
+pridge = predict(ridge, newx=test_X, type='response', s='lambda.1se')
+plasso = predict(lasso, newx=test_X, type='response', s='lambda.1se')
+pelast = predict(elast, newx=test_X, type='response', s='lambda.1se')
 
 roc.ridge=roc(test_Y,as.vector(pridge))
 roc.lasso=roc(test_Y,as.vector(plasso))
