@@ -2,7 +2,7 @@
 library(tidyverse)
 library(rpart)
 library(pROC)
-
+ 
 # Import des données
 db=read.csv('SAheart.csv',
             stringsAsFactors = T)%>% 
