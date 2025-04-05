@@ -26,6 +26,10 @@ for(i in 1:nbbloc ){
     print(i)
     maladieA = maladie[bloc!=i,]
     maladieT = maladie[bloc == i,]
+    
+    mat_maladieX = model.matrix(chd~., data=maladie)
+    mat_maladieY = maladie$chd
+    
     # logistique global    
     reglog = glm(chd~., data=maladieA, family = 'binomial')
     SCORE[bloc == i, 'glm']= predict(reglog, maladieT, type = 'response')
@@ -36,6 +40,13 @@ for(i in 1:nbbloc ){
     tmp = choix$BestModels[1,-ncol(maladie)]
     var = names(tmp)[tmp==TRUE]
     models[[i]]=var
+    
+    # logistique pénalisée
+    mod2 <- step(reglog,trace=0)
+    SCORE[bloc==i,"AIC"] <- predict(mod2,maladieT,type="response")
+    mod3 <- step(reglog,trace=0,k=log(nrow(maladieA)))
+    SCORE[bloc==i,"BIC"] <- predict(mod3,maladieT,type="response")
+    
 }
 
 
@@ -52,9 +63,10 @@ lapply(rocCV,FUN=auc)
 auc(rocCV$glm) 
 auc(rocCV$choix)
 
-ind=order(aucmodele,decreasing=T)
-mapply(plot, rocCV[ind[1:2]],col = 1:2, lty=1:2, legacy.axes = T, lwd=3, add = c(F,T))
-legend("bottomright",legend = names(SCORE)[2:3], col=1:2, lty=1:2, lwd=3,cex=1)
+rocCV 
+ind=order(aucmodele,decreasing=T); L = length(ind)
+mapply(plot, rocCV[ind[1:L]],col = 1:L, lty=1:L, legacy.axes = T, lwd=3, add = c(F,T,T,T))
+legend("bottomright",legend = names(SCORE)[2:L], col=1:L, lty=1:L, lwd=3,cex=1)
 
 tmp = lapply(rocCV, FUN = coords, x='best', ret = c('threshold','tp','fp','tn','fn','sensitivity','specificity','ac'),transpose = T)
 
