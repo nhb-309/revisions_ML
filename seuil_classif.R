@@ -10,7 +10,13 @@ data(SAheart)
 maladie = SAheart
 maladie$chd = as.factor(maladie$chd)
 
+col_num = sapply(maladie, is.numeric)
+col_fct = sapply(maladie, is.factor)
+scaled_maladie = sapply(maladie[,col_num],scale)
 
+maladie=cbind(scaled_maladie, maladie[col_fct])
+maladie$famhist=ifelse(maladie$famhist == 'Present', 1,0)
+maladie %>% head()
 
 SCORE = data.frame(Y=maladie$chd)
 SCORE
@@ -110,28 +116,9 @@ aucmodele=sort(round(unlist(lapply(rocCV,auc)),5),dec=TRUE)
 aucmodele
 lapply(rocCV,FUN=auc) %>% unlist() %>% round(4) 
 
-plot(rocCV$foret,col='blue')
-lines(rocCV$glm,col='red')
-legend("bottomright",legend=c('foret','log'),col=c('blue','red'))
-
-ind=order(aucmodele,decreasing=T); L = length(ind)
-mapply(plot,rocCV,col=1:L,add=T)
-
-auc(rocCV$glm) 
-auc(rocCV$choix)
-auc(rocCV$foret)
+plot(rocCV$glm,col='blue',lwd=0.5)
+lines(rocCV$ridge,col='red',lwd=0.5)
+lines(rocCV$elnet,col='black',lwd=0.5)
 
 
 
-ind=order(aucmodele,decreasing=T); L = length(ind)
-mapply(plot, rocCV[ind[1:L]],col = 1:L,add=T)
-legend("bottomright",legend = names(SCORE)[2:L])
-mapply(plot, rocCV[ind[1:L]],col = 1:L, lty=1:L, legacy.axes = T, lwd=1, add = c(T))
-mapply(plot, rocCV[ind[1:L]],col = 1:L, lty=1:L, legacy.axes = T, lwd=1, add = c(T,T,T,T,T,T))
-legend("bottomright",legend = names(SCORE)[2:L], col=2:L, lty=2:L, lwd=1,cex=1)
-
-
-tmp = lapply(rocCV, FUN = coords, x='best', ret = c('threshold','tp','fp','tn','fn','sensitivity','specificity','ac'),transpose = T)
-tmp
-mat=do.call(rbind, tmp)
-mat
