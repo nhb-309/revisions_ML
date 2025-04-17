@@ -5,6 +5,7 @@ library(pROC)
 library(ggplot2)
 library(tidyverse)
 
+
 data(SAheart)
 
 maladie = SAheart
@@ -24,14 +25,15 @@ SCORE
 nbbloc=5
 bloc = rep(0, nrow(maladie))
 
-maladieX = model.matrix(chd~. , data=maladie)[,-1]
-maladieY = maladie[,"chd"]
-
 ind0=which(maladie$chd == 0)
 ind1=which(maladie$chd == 1)
 
 bloc[ind0] = sample(rep(1:nbbloc,length = length(ind0)))
 bloc[ind1] = sample(rep(1:nbbloc,length = length(ind1)))
+
+maladieX = model.matrix(chd~. , data=maladie)[,-1]
+maladieY = maladie[,"chd"]
+
 
 models = list()
 
