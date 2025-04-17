@@ -1,0 +1,47 @@
+library(shiny)
+
+ui <- fluidPage(
+    titlePanel("Three-Tab Shiny App"),
+    
+    tabsetPanel(
+        tabPanel("Introduction",
+                 h3("Outil de contrôle qualité de données"),
+                 p("Cet outil a vocation à contrôler la qualité du taux appliqué à une transaction sécurisée, tel que reporté dans la collecte MMSR qui recense l'intégralité des transactions effectuées chaque jour sur le marché interbancaire. ", 
+                   br(),br(),
+                   "Le marché interbancaire est un segment du marché monétaire où les banques échangent entre elles des liquidités, principalement à très court terme (de quelques jours à quelques mois). Il répond à un besoin fondamental des établissements bancaires : gérer leurs excédents ou déficits de trésorerie au quotidien, notamment pour respecter les exigences réglementaires comme le ratio de liquidité à court terme (LCR).", br(),
+                   "Les opérations interbancaires peuvent être non garanties (prêts simples) ou garanties par des actifs (opérations de pension livrée ou repos). Les banques ayant un excédent de liquidités peuvent les prêter à celles qui sont temporairement en déficit, contribuant ainsi à la stabilité du système bancaire.",
+                   br(),br(),
+                   "Les taux pratiqués sur ce marché, comme l’Euribor ou le €STR, reflètent le coût de refinancement à court terme et sont influencés par la politique monétaire des banques centrales. En période de tension, ce marché peut se gripper, incitant les banques centrales à intervenir pour assurer la liquidité du système.",
+                   br(),br(),
+                   "Contrôler la qualité des taux reportés par les banques est crucial car cette variable caractérise le risque de liquidité pesant sur un établissement."
+                   ),
+                 h3("Enrichissement de la base")),
+        tabPanel("Statistiques descriptives",
+                 h3(""),
+                 p("This is the first tab with some welcome text.")
+        ),
+        tabPanel("Comparaison des algorithmes",
+                 h3("Plot Tab"),
+                 h3("Hello 2")
+        ),
+        tabPanel("Summary",
+                 h3("Summary Tab"),
+                 verbatimTextOutput("summary")
+        )
+    )
+)
+
+server <- function(input, output, session) {
+    # Sample data
+    data <- reactive({ rnorm(100) })
+    
+    output$plot <- renderPlot({
+        hist(data(), main = "Histogram of Random Data", col = "skyblue")
+    })
+    
+    output$summary <- renderPrint({
+        summary(data())
+    })
+}
+
+shinyApp(ui, server)
