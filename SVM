@@ -1,0 +1,32 @@
+library(kernlab)
+library(caret)
+
+data(spam)
+perm=sample(4601,3000)
+app   = spam[perm,] 
+valid = spam[-perm,]
+
+# SVM Polynomial
+  gr.poly=expand.grid(C=c(0.1,10,100),
+                      degree=c(1,2,3),
+                      scale=1)
+  
+  ctrl = trainControl(method='cv', number=3)
+  svm.poly = train(type~., data=app, method = 'svmPoly', trControl = ctrl, tuneGrid = gr.poly)
+  bestPoly=svm.poly$results[which.max(svm.radial$results$Accuracy),]
+
+# SVM Radial
+  gr.radial=expand.grid(C=c(0.1,1,10),
+                        sigma = c(0.0001,0.001,0.01,0.1,1))
+  ctrl = trainControl(method='cv', number=3)
+  svm.radial = train(type~., data=app, method = 'svmRadial', trControl = ctrl, tuneGrid = gr.radial)
+  bestRadial=svm.radial$results[which.max(svm.radial$results$Accuracy),]
+
+tmpPol=ksvm(type~., data=app, kernel = 'polydot', kpar=list(degree=bestPoly$degree,scale=1,offset=1),C=bestPoly$C,prob.model=T)
+tmpRad=ksvm(type~., data=app, kernel =  'rbfdot', kpar=list(sigma=bestRadial$sigma),C=bestRadial$C,prob.model=T)
+
+prev.class.poly = predict(tmpPol, newdata=valid)
+prev.class.radial = predict(tmpRad, newdata=valid)
+
+prev.prob.poly   = predict(tmpPol, newdata=valid, type = 'prob')
+prev.prob.radial = predict(tmpRad,newdata=valid, type= 'prob')
