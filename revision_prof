@@ -1,0 +1,168 @@
+library(tidyr)
+library(dplyr)
+library(lubridate)
+
+file <- "estat_ei_cphi_m.tsv"
+
+raw <- read.delim("estat_ei_cphi_m.tsv", header=TRUE, row.names=NULL, na.strings = ":")
+
+# Tidy et format long
+d01 <- raw %>%
+  separate(freq.unit.s_adj.indic.geo.TIME_PERIOD, sep = ",", into = c("freq", "unit", "s_adj", "indic", "geo")) %>%
+  pivot_longer(-c(freq, unit, s_adj, indic, geo), names_to = "date") %>%
+  mutate(date = ym(gsub("^X", "", date)),
+         value = as.numeric(gsub("([a-z])|([[:space:]])", "", value)))
+  
+# Que des donnees NSA mensuelles, 3 unit différents
+table(d01$s_adj)
+table(d01$freq)
+table(d01$indic)
+table(d01$geo)
+table(d01$unit)
+
+
+# Passer l'inflation en colonne
+d02 <- d01 %>%
+  filter(unit == "HICP2015") %>%
+  pivot_wider(names_from = indic, values_from = value, id_cols = c(geo, date))
+
+nom <- names(d02)
+nom2 <- str_replace(nom,"-","_")
+names(d02) <- nom2
+ggplot(d02,aes(x=date,y=CP_HI00,col=geo))+geom_line()
+
+#### Y a t il des groupes de pays qui se ressemblent 
+#### en considérant la série CP_HI00
+tmp <- d02[,1:3]
+CPHI00 <- pivot_wider(tmp,names_from = geo,values_from = CP_HI00)
+summary(CPHI00)
+nbna <- apply(is.na(CPHI00),2,sum)
+donT <- CPHI00[,nbna<2]
+dim(donT)
+summary(donT)
+plot(apply(is.na(donT),1,sum)) #le NA est bien sur la dernière obs
+donT <- donT[-nrow(donT),]
+summary(donT)
+matplot(,donT[,-1],type="l")
+#### classif
+#### quelle distance ? quelle méthode ? Que faire de TR ?
+### Attention aux individus  ici en colonnnes :(
+head(donT)
+dondate <- donT
+donpays <- t(donT[,-1])
+colnames(donpays) <- donT$date
+
+matd1 <- dist(donpays,"manhattan")
+cahs <- hclust(matd1,"single")
+plot(as.dendrogram(cahs))
+plot(sort(cahs$height,dec=T),type="h")
+gp4 <- cutree(cahs,k=4)
+matplot(donT[,-1],type="l",col=gp4,lwd=3)
+table(gp4)
+
+cahw <- hclust(matd1,"ward.D")
+plot(as.dendrogram(cahw))
+plot(sort(cahw$height,dec=T),type="h")
+gp4 <- cutree(cahw,k=4)
+matplot(donT[,-1],type="l",col=gp4,lwd=3)
+table(gp4)
+
+
+donTsT <- select(donT,-TR)
+donTsT <- data.frame(donTsT)
+rownames(donTsT) <- donTsT[,1]
+tmp <- donTsT[,-1]
+matd2 <- dist(tmp)
+caha <- hclust(matd2,"average")
+plot(as.dendrogram(caha))
+plot(sort(caha$height[1:20],dec=T),type="h")
+gp5 <- cutree(caha,k=5)
+plot(gp5)
+split(rownames(donTsT),gp5)
+
+##### Inflation française
+donfr <- select(CPHI00,date,FR)
+ggplot(donfr,aes(x=date,y=FR))+geom_line()
+don <- data.frame(date=donfr[-1,"date"],infl = diff(donfr$FR))
+head(don)
+ggplot(don,aes(x=date,y=infl))+geom_line()
+
+library(lubridate)
+date <- as.Date(donfr[,1])
+infts <- ts(donfr$FR,start=c(1996,01),frequency=12)
+plot(infts)
+tmp <- stl(infts,s.window = 12,t.window=1000)
+plot(tmp)
+
+### on met de coté les 2 dernières années
+tsapp <- ts(diff(donfr$FR[1:324]),start=c(1996,02),frequency=12)
+date <- rep(1996:2022,each=12)[-1]
+#####################################################################
+tstest <- ts(diff(donfr$FR[324:nrow(donfr)]),start=c(2023,01),frequency=12)
+#####################################################################
+Y <- as.vector(tsapp)
+don <- data.frame(Y=Y)
+for(ii in 1:12){
+  don[,ii+1] <- lag(Y,n=ii)
+}
+dim(don)
+names(don) <- c("Y",paste("Xd",1:12,sep=""))
+don <- cbind(don,date)
+don <- don[-(1:13),]
+dim(don)
+##################################################
+###et maintenant ML en faisant attention pour la VC
+###################################################
+dim(don)
+blocs <- don$date
+RES <- data.frame(Y=don$Y)
+donAPP <- don[blocs<2018,]
+donappxbg <- don[blocs<2017,]
+dontestxgb <- don[blocs==2017,]
+library(randomForest)
+library(xgboost)
+for(ii in 2018:2022){
+  ####
+  dtrain <- xgb.DMatrix(data=as.matrix(donappxbg[,2:13]), label = donappxbg$Y)
+  dval <- xgb.DMatrix(data = as.matrix(dontestxgb[,2:13]), label = dontestxgb$Y)
+  params <- list(objective = "reg:squarederror",eta=0.1,max_depth=1)
+  watchlist <- list(train = dtrain, eval = dval)
+  model <- xgb.train(
+    params = params,
+    data = dtrain,
+    nrounds = 500,  # Large number of iterations
+    watchlist = watchlist,
+    early_stopping_rounds = 10,  # Stop if no improvement
+    verbose = 0
+  )
+  itermax <- model$best_iteration
+  cat("Optimal number of iterations:", itermax, "\n")
+  dtrain <- xgb.DMatrix(data=as.matrix(donAPP[,2:13]), label = donAPP$Y)
+  dval <- xgb.DMatrix(data = as.matrix(donTEST[,2:13]), label = donTEST$Y)
+  modxgb <- xgb.train(params = params,data = dtrain,nrounds = itermax,verbose = 0)
+  RES[blocs==ii,"xgb"] <- predict(modxgb,dval)
+  ###########################################################
+  
+  print(nrow(donAPP))
+  ind <- which(blocs==ii)
+  donTEST <- don[blocs==ii,]
+  ###
+  tmp <- lm(Y~.-date,donAPP)
+  RES[blocs==ii,"mco"] <- predict(tmp,donTEST)
+  ####
+  tmpaic <- step(tmp,trace=0)
+  RES[blocs==ii,"aic"] <- predict(tmpaic,donTEST)
+  ####
+  foret <- randomForest(Y~.-date,donAPP)
+  RES[blocs==ii,"foret"] <- predict(foret,donTEST)
+
+  ################################################
+  ##je mets à jour mon apprentissage
+  ################################################
+  donappxbg <- donAPP
+  dontestxgb <- donTEST
+  donAPP <- rbind(donAPP,donTEST)
+}
+RES <- RES[don$date>2017,]
+erreur <- function(X,Y){mean((X-Y)^2)}
+apply(RES,2,erreur,Y=RES$Y)
