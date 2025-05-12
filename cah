@@ -1,0 +1,7 @@
+donT
+mat_dist = dist(donT,method='euclidean')
+mat_dist
+cah=hclust(mat_dist, method= 'ward.D')
+plot(cah)
+donT$cluster=cutree(cah, k=4)
+donT
