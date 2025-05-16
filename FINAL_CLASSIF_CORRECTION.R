@@ -391,7 +391,7 @@ for(pp in 1:nrow(xgrid)){
         eta = xgrid$eta[pp]
     )
     
-    nIter = 600
+    nIter = 900
     
     tmp = xgb.cv(
         params = params,
@@ -418,10 +418,8 @@ for(pp in 1:nrow(xgrid)){
 
 }
 
-
+xgrid[which.min(xgrid$bestLogloss),!names(xgrid)%in% c('bestLogloss')]
 final.params = xgrid[which.min(xgrid$bestLogloss),!names(xgrid)%in% c('bestLogloss')]
-
-final.params = list(objective = "binary:logistic")
 
 nrounds = final.params$bestIter
 
@@ -508,6 +506,17 @@ model.poly <- xgb.train(
     nrounds = nIter,
     verbose = 0
 )
+
+xgb_final = xgb.train(objective = 'binary:logistic',
+                      eval_metric = 'logloss',
+                      data = xgb.data.poly,
+                      eta = final.params$eta,
+                      subsample = final.params$subsample,
+                      nrounds = nrounds)
+
+
+
+
 
 SCORE.poly[,'predict_poly']=predict(model.poly, newdata = xgb.test.poly, type='response')
 
