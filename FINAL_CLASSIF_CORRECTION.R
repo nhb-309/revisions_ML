@@ -109,7 +109,8 @@ gr.poly=expand.grid(C=c(0.1,10,100),
                     scale=1)
 gr.radial=expand.grid(C=c(0.1,1,10),
                       sigma = c(0.0001,0.001,0.01,0.1,1))
-ctrl = trainControl(method='cv', number=3)
+
+ctrl = trainControl(method='cv', number=5)
 
 
 # Validation croisee
@@ -144,6 +145,7 @@ for(jj in 1:nbloc){
   SCORE[folds==jj,'bic']=predict(bic,newdata=donV,type='response')
   
   # Penalisation =================================================================
+  
   ridge=cv.glmnet(donXA,donYA,alpha=0  ,family='binomial',nfolds=5,type.measure='auc')
   lasso=cv.glmnet(donXA,donYA,alpha=1  ,family='binomial',nfolds=5,type.measure='auc')
   elnet=cv.glmnet(donXA,donYA,alpha=0.5,family='binomial',nfolds=5,type.measure='auc')
@@ -238,7 +240,7 @@ for(jj in 1:nbloc){
   xgb_data_test=xgb.DMatrix(data = X_test, label = Y_test)
   
   xgrid = expand.grid(
-    max_depth = c(1,2),
+    max_depth = c(1,2,5),
     eta = c(0.1,0.05)
   )
   
@@ -308,6 +310,11 @@ for(jj in 1:nbloc){
   
 }
 
+# ==============================================================================
+# > Comparaison des modèles
+# ==============================================================================
+
+
 SCORE
 
 rocCV = roc(factor(Y)~., data=SCORE %>% select(-c(rad_svm,pol_svm)), quiet=T)
@@ -334,21 +341,97 @@ mat=do.call(rbind,tmp)
 aucmodele
 mat
 
+# Modèle le plus performant : 
+# Selon quel critère : 
+
+
 # REESTIMER LE MODELE SUR l'ENSEMBLE DES DONNES ET PREDIRE LE TEST
 # faire le feature engineering
 
 # Meilleur modèle => xgboost donc on le récupère:
 
-indY = which(names(donApp)=='Y')
 
-indY
+# AJOUTER LE EARLY STOPPING ROUND ET UN BORD DE GRILLE:
+#> ok pour le early stopping round
+
+# ==============================================================================
+# > Entraînement du meilleur modèle. 
+# ==============================================================================
+
+### 0. Sélection de tout le jeu d'apprentissage
+
+indY = which(names(donApp)=='Y')
 X_train_final = as.matrix(donApp[,-indY])
 Y_train_final = as.numeric(donApp[[indY]])-1
 
-xgb_data_train=xgb.DMatrix(data = X_train, label = Y_train)
-
 xgb_data_final_train = xgb.DMatrix(data=X_train_final, label = Y_train_final)
-xgb_final = xgb.train(params = best_params,data = xgb_data_final_train,nrounds = best_params_index$bestIter)
+getinfo(xgb_data_final_train,'label') # pour vérifier la composition du label (en 0/1)
+
+### 1. Grille d'hyperparamètres
+
+metric = 'logloss'  # ou 'logloss' --> penser à modifier dans la boucle d'HP
+
+xgrid = expand.grid(
+    max_depth = c(1,2,5),
+    subsample = c(0.3,0.5,0.9),
+    eta = c(0.1,0.05,0.01)
+)
+
+
+### 2. Boucle hyper-paramètres
+pp=1
+for(pp in 1:nrow(xgrid)){
+    
+    cat('\n',100*pp/nrow(xgrid),'% \n')
+    
+    params = list(
+        objective = "binary:logistic",
+        eval_metric = metric,
+        max_depth = xgrid$max_depth[pp],
+        eta = xgrid$eta[pp]
+    )
+    
+    nIter = 600
+    
+    tmp = xgb.cv(
+        params = params,
+        nrounds = nIter,
+        nfold = 5,
+        verbose = F,
+        early_stopping_rounds = 10,
+        data=xgb_data_train
+    )
+    
+    bestIter = tmp$best_iteration
+    bestLogloss = tmp$evaluation_log$test_logloss_mean[bestIter]
+
+    if(bestIter==nIter){
+      cat('\n',"ATTENTION: BORD DE GRILLE: ", bestIter, '\n')
+    } else{
+        cat('\n' ,'Meilleure itération XGBoost : ', bestIter, '\n' )
+    }
+    
+    x = data.frame(cbind(xgrid[pp,],bestIter,bestLogloss))
+    
+    xgrid[pp,'bestIter'] = bestIter  
+    xgrid[pp,'bestLogloss'] = bestLogloss
+
+}
+
+
+final.params = xgrid[which.min(xgrid$bestLogloss),!names(xgrid)%in% c('bestLogloss')]
+
+final.params = list(objective = "binary:logistic")
+
+nrounds = final.params$bestIter
+
+xgb_final = xgb.train(objective = 'binary:logistic',
+                      data = xgb_data_final_train,
+                      eta = final.params$eta,
+                      subsample = final.params$subsample,
+                      nrounds = nrounds)
+
+
 
 # Test et performances sur le dataset de test final
 
